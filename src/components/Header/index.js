@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Menu, Button } from 'semantic-ui-react';
 import { useTheme } from '../ThemeProvider';
 
@@ -12,10 +12,18 @@ const Header = () => {
     isAppInstalled = true;
   }
 
-  window.addEventListener('beforeinstallprompt', e => {
-    e.preventDefault();
-    setPromptEvent(e);
-  });
+  useEffect(() => {
+    const handleBeforeInstallPrompt = e => {
+      e.preventDefault();
+      setPromptEvent(e);
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    };
+  }, []);
 
   const installApp = () => {
     promptEvent.prompt();

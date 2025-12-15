@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Segment, Form, Button, Input, TextArea, Header, Icon, Divider } from 'semantic-ui-react';
 import { useTheme } from '../ThemeProvider';
 import { v4 as uuidv4 } from 'uuid';
+import Swal from 'sweetalert2';
 
 const defaultQuestion = () => ({
   id: uuidv4(),
@@ -37,10 +38,35 @@ const CustomQuestionCreator = ({ onSave, onCancel }) => {
 
   const save = () => {
     // validation
-    for (const q of questions) {
-      if (!q.question.trim()) return alert('Please fill all question texts');
-      if (!q.correct_answer) return alert('Please mark correct answer for each question');
-      if (!Array.isArray(q.options) || q.options.length < 2) return alert('Each question needs at least two options');
+    for (let i = 0; i < questions.length; i++) {
+      const q = questions[i];
+      if (!q.question.trim()) {
+        Swal.fire({
+          icon: 'warning',
+          title: `Question ${i + 1} is empty`,
+          text: 'Please fill in the question text',
+          confirmButtonText: 'OK',
+        });
+        return;
+      }
+      if (!q.correct_answer) {
+        Swal.fire({
+          icon: 'warning',
+          title: `Question ${i + 1} missing correct answer`,
+          text: 'Please mark the correct answer for this question',
+          confirmButtonText: 'OK',
+        });
+        return;
+      }
+      if (!Array.isArray(q.options) || q.options.length < 2) {
+        Swal.fire({
+          icon: 'warning',
+          title: `Question ${i + 1} needs at least 2 options`,
+          text: 'Please add more options to this question',
+          confirmButtonText: 'OK',
+        });
+        return;
+      }
     }
 
     const normalized = questions.map(q => ({
@@ -85,9 +111,12 @@ const CustomQuestionCreator = ({ onSave, onCancel }) => {
                   />
                   <Button
                     onClick={() => updateQuestion(qi, { correct_answer: q.options[oi] })}
-                    active={q.correct_answer === q.options[oi]}
+                    color={q.correct_answer === q.options[oi] ? 'green' : 'grey'}
+                    style={{
+                      fontWeight: q.correct_answer === q.options[oi] ? 'bold' : 'normal',
+                    }}
                   >
-                    Correct
+                    {q.correct_answer === q.options[oi] ? '✓ Correct' : 'Mark'}
                   </Button>
                   <Button negative onClick={() => removeOption(qi, oi)} disabled={q.options.length <= 2}>
                     Remove
