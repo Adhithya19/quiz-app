@@ -135,6 +135,53 @@ h1, h2, h3, p {
 	border: 1px solid rgba(255,255,255,0.03) !important;
 }
 
+/* Countdown timer button styling */
+.countdown-button {
+	background: transparent !important;
+	color: var(--text-color) !important;
+	border: 1px solid rgba(255,255,255,0.06) !important;
+}
+
+/* Upload help box shown inline */
+.upload-help {
+	background: var(--card-bg) !important;
+	color: var(--text-color) !important;
+	border: 1px solid rgba(255,255,255,0.04) !important;
+	padding: .75rem 1rem !important;
+	margin-top: .75rem;
+}
+
+/* Make popup inverted use theme vars when available */
+.ui.popup.inverted,
+.ui.popup {
+	background: var(--card-bg) !important;
+	color: var(--text-color) !important;
+}
+/* Form inputs in dark mode */
+[data-theme='dark'] .ui.input > input,
+[data-theme='dark'] .ui.form input,
+[data-theme='dark'] .ui.form textarea,
+[data-theme='dark'] .ui.textarea textarea,
+[data-theme='dark'] .ui.input > input:focus,
+[data-theme='dark'] .ui.textarea textarea:focus,
+[data-theme='dark'] textarea,
+[data-theme='dark'] input,
+[data-theme='dark'] select {
+	background: var(--card-bg) !important;
+	color: var(--text-color) !important;
+	border: 1px solid rgba(255,255,255,0.06) !important;
+}
+
+[data-theme='dark'] .ui.form .field label {
+	color: var(--text-color) !important;
+}
+
+[data-theme='dark'] .ui.button,
+[data-theme='dark'] .ui.buttons .ui.button {
+	background-color: var(--button-bg) !important;
+	color: var(--button-text) !important;
+}
+
 .ui.button,
 .ui.buttons .ui.button {
 	background-color: var(--button-bg) !important;

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import PropTypes from 'prop-types';
 import {
   Container,
@@ -22,6 +22,7 @@ import {
 import { shuffle } from '../../utils';
 
 import Offline from '../Offline';
+import CustomQuestionCreator from '../CustomQuestionCreator';
 
 const Main = ({ startQuiz }) => {
   const [category, setCategory] = useState('0');
@@ -36,31 +37,26 @@ const Main = ({ startQuiz }) => {
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState(null);
   const [offline, setOffline] = useState(false);
+  const [fileError, setFileError] = useState(null);
+  const fileInputRef = useRef();
+  const [showCreator, setShowCreator] = useState(false);
 
   const handleTimeChange = (e, { name, value }) => {
     setCountdownTime({ ...countdownTime, [name]: value });
   };
 
-  let allFieldsSelected = false;
-  if (
-    category &&
-    numOfQuestions &&
-    difficulty &&
-    questionsType &&
-    (countdownTime.hours || countdownTime.minutes || countdownTime.seconds)
-  ) {
-    allFieldsSelected = true;
-  }
+  const allFieldsSelected = Boolean(category && numOfQuestions && difficulty && questionsType);
 
   const fetchData = () => {
     setProcessing(true);
 
     if (error) setError(null);
 
-    const API = `https://opentdb.com/api.php?amount=${numOfQuestions}&category=${category}&difficulty=${difficulty}&type=${questionsType}`;
+    const baseApi = `https://opentdb.com/api.php?amount=${numOfQuestions}&category=${category}&difficulty=${difficulty}`;
+    const API = questionsType && questionsType !== '0' ? `${baseApi}&type=${questionsType}` : baseApi;
 
     fetch(API)
-      .then(respone => respone.json())
+      .then(response => response.json())
       .then(data =>
         setTimeout(() => {
           const { response_code, results } = data;
@@ -71,6 +67,17 @@ const Main = ({ startQuiz }) => {
                 The API doesn't have enough questions for your query. (Ex.
                 Asking for 50 Questions in a Category that only has 20.)
                 <br />
+                {showCreator && (
+                  <div style={{ marginTop: 16 }}>
+                    <CustomQuestionCreator
+                      onSave={data => {
+                        const totalSeconds = countdownTime.hours + countdownTime.minutes + countdownTime.seconds;
+                        startQuiz(data, totalSeconds);
+                      }}
+                      onCancel={() => setShowCreator(false)}
+                    />
+                  </div>
+                )}
                 <br />
                 Please change the <strong>No. of Questions</strong>,{' '}
                 <strong>Difficulty Level</strong>, or{' '}
@@ -84,10 +91,11 @@ const Main = ({ startQuiz }) => {
             return;
           }
 
+          // normalize options for each result
           results.forEach(element => {
             element.options = shuffle([
               element.correct_answer,
-              ...element.incorrect_answers,
+              ...(element.incorrect_answers || []),
             ]);
           });
 
@@ -98,16 +106,78 @@ const Main = ({ startQuiz }) => {
           );
         }, 1000)
       )
-      .catch(error =>
+      .catch(err =>
         setTimeout(() => {
           if (!navigator.onLine) {
             setOffline(true);
           } else {
             setProcessing(false);
-            setError(error);
+            setError(err);
           }
         }, 1000)
       );
+  };
+
+  const handleFileSelect = e => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    setProcessing(true);
+    setFileError(null);
+
+    const reader = new FileReader();
+    reader.onload = ev => {
+      try {
+        const parsed = JSON.parse(ev.target.result);
+
+        // allow two shapes: array of questions or { questions: [...] }
+        const dataArray = Array.isArray(parsed)
+          ? parsed
+          : parsed && Array.isArray(parsed.questions)
+          ? parsed.questions
+          : null;
+
+        if (!dataArray) throw new Error('Invalid JSON shape. Expected an array of questions or { questions: [...] }');
+
+        // normalize items to have options array
+        const normalized = dataArray.map(item => {
+          // if options not present, try to build from incorrect_answers
+          if (!item.options || !Array.isArray(item.options)) {
+            if (Array.isArray(item.incorrect_answers)) {
+              item.options = shuffle([item.correct_answer, ...item.incorrect_answers]);
+            } else if (Array.isArray(item.answers)) {
+              // fallback if property named answers
+              item.options = item.answers;
+            } else {
+              item.options = [item.correct_answer];
+            }
+          }
+          return item;
+        });
+
+        // basic validation: each item must have question and correct_answer
+        const invalid = normalized.find(it => !it.question || !it.correct_answer || !Array.isArray(it.options) || it.options.length < 2);
+        if (invalid) throw new Error('Each question must have `question`, `correct_answer` and at least two `options`.');
+
+        const totalSeconds = countdownTime.hours + countdownTime.minutes + countdownTime.seconds;
+
+        setProcessing(false);
+        startQuiz(normalized, totalSeconds);
+      } catch (err) {
+        setProcessing(false);
+        setFileError(err.message || 'Failed to parse JSON');
+      }
+    };
+    reader.onerror = () => {
+      setProcessing(false);
+      setFileError('Failed to read file');
+    };
+    reader.readAsText(file);
+    // reset input
+    e.target.value = null;
+  };
+
+  const triggerFileUpload = () => {
+    if (fileInputRef && fileInputRef.current) fileInputRef.current.click();
   };
 
   if (offline) return <Offline />;
@@ -228,6 +298,27 @@ const Main = ({ startQuiz }) => {
                   onClick={fetchData}
                   disabled={!allFieldsSelected || processing}
                 />
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="application/json"
+                  onChange={handleFileSelect}
+                  style={{ display: 'none' }}
+                />
+                <Button
+                  size="big"
+                  icon="upload"
+                  labelPosition="left"
+                  content="Upload JSON"
+                  onClick={triggerFileUpload}
+                  disabled={processing}
+                />
+                {fileError && (
+                  <Message error onDismiss={() => setFileError(null)}>
+                    <Message.Header>Upload Error</Message.Header>
+                    {fileError}
+                  </Message>
+                )}
               </Item.Extra>
             </Item.Content>
           </Item>
